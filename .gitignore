@@ -1,3 +1,11 @@
+build
+dist
+Include
+Lib
+Scripts
+*.spec
+*.cfg
+
 # JPEG
 *.jpg
 *.jpeg
