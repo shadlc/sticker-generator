@@ -58,7 +58,10 @@ def resize(img, size=0):
 if __name__ == "__main__":
 
     if not len(sys.argv) >= 3:
-        print(f"请按照以下格式使用此程序，且至少需输入源文件夹和目标文件夹：此程序 源文件夹 输出文件夹 图片大小 描边宽度 图片格式")
+        print(
+            f"请按照以下格式的脚本调用此程序，且至少需输入源文件夹和目标文件夹：此程序 源文件夹 输出文件夹 图片大小 描边宽度 图片格式"
+            "例如使用CMD在本目录如此执行 ./sticker-generator.exe ./input ./output 300 3 png"
+        )
         os.system('pause')
         sys.exit()
 
@@ -73,9 +76,10 @@ if __name__ == "__main__":
         os.system('pause')
         sys.exit()
 
-    img_size = 0
+    img_size = 300
     stroke_size = 3
     img_type = "png"
+    img_count = 0
     if len(sys.argv) >= 4:
         img_size = sys.argv[3]
     if not img_size.isdigit():
@@ -83,21 +87,22 @@ if __name__ == "__main__":
         sys.exit()
     if len(sys.argv) >= 5:
         stroke_size = sys.argv[4]
-    if not img_size.isdigit():
+    if not stroke_size.isdigit():
         print(f"描边宽度输入“{input_path}”错误")
         sys.exit()
     if len(sys.argv) >= 6:
         img_type = sys.argv[5]
 
-    for image_name in os.listdir(input_path):
-        src = input_path + image_name
-        image_name_output = image_name.split('.')[0]+ "." + img_type
+    for full_image_name in os.listdir(input_path):
+        src = os.path.join(input_path, full_image_name)
+        image_name = full_image_name.split('.')[0]
+        img_count += 1
+        image_name_output = f"{image_name}_{img_count}.{img_type}"
         img = Image.open(src)
         img = img.convert('RGBA')
-        resized_img = resize(img, size=300)
-        stroked_img = stroke(resized_img, threshold=0, stroke_size=stroke_size, colors=((255,255,255),), padding=0)
-        stroked_img.save(output_path + image_name_output)
+        resized_img = resize(img, size=int(img_size))
+        stroked_img = stroke(resized_img, threshold=0, stroke_size=int(stroke_size), colors=((255,255,255),), padding=0)
+        stroked_img.save(os.path.join(output_path, image_name_output))
         print(f"图片{image_name_output}已处理完成")
     print(f"已保存全部图片至文件夹“{output_path}”")
     os.system('pause')
-
