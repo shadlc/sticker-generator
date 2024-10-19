@@ -4,49 +4,97 @@ import os
 import sys
 import cv2
 
-def stroke(image, threshold, stroke_size, colors, padding):
+
+def stroke(
+        image: Image,
+        threshold: int,
+        stroke_size: int,
+        colors :list[int, int, int],
+        padding: int
+    ) -> Image:
+    """为图片绘制描边
+
+    Args:
+        image (Image): 输入图片
+        threshold (int): 透明度阈值
+        stroke_size (int): 描边宽度
+        colors (list[int, int, int]): 描边颜色
+        padding (int): 边框宽度
+
+    Returns:
+        Image: 输出图片
+    """    
     img = np.asarray(image)
     h, w, _ = img.shape
     alpha = img[:,:,3]
     rgb = img[:,:,0:3]
+    # 绘制边框
     bigger_img = cv2.copyMakeBorder(rgb, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=(0, 0, 0, 0))
     alpha = cv2.copyMakeBorder(alpha, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=0)
     bigger_img = cv2.merge((bigger_img, alpha))
     h, w, _ = bigger_img.shape
     
-    _, alpha_without_shadow = cv2.threshold(alpha, threshold, 255, cv2.THRESH_BINARY)  # threshold=0 in photoshop
-    alpha_without_shadow = 255 - alpha_without_shadow
-    dist = cv2.distanceTransform(alpha_without_shadow, cv2.DIST_L2, cv2.DIST_MASK_3)  # dist l1 : L1 , dist l2 : l2
+    _, alpha_without_shadow = cv2.threshold(alpha, threshold, 255, cv2.THRESH_BINARY_INV)
+    # 计算每个透明像素到不透明像素的距离
+    dist = cv2.distanceTransform(alpha_without_shadow, cv2.DIST_L2, cv2.DIST_MASK_3)
+    # 二值化距离
     stroked = change_matrix(dist, stroke_size)
+    # 设置不透明度
     stroke_alpha = (stroked * 255).astype(np.uint8)
-
-    stroke_b = np.full((h, w), colors[0][2], np.uint8)
-    stroke_g = np.full((h, w), colors[0][1], np.uint8)
-    stroke_r = np.full((h, w), colors[0][0], np.uint8)
-
+    # 绘制描边颜色
+    stroke_b = np.full((h, w), colors[2], np.uint8)
+    stroke_g = np.full((h, w), colors[1], np.uint8)
+    stroke_r = np.full((h, w), colors[0], np.uint8)
+    # 绘制描边
     stroke = cv2.merge((stroke_b, stroke_g, stroke_r, stroke_alpha))
+    # 合并描边与图片
     stroke = cv2pil(stroke)
     bigger_img = cv2pil(bigger_img)
     result = Image.alpha_composite(stroke, bigger_img)
     return result
 
-def change_matrix(input_mat, stroke_size):
-    stroke_size = stroke_size - 1
+
+def change_matrix(input_mat: np.ndarray, threshold: int) -> np.ndarray:
+    """二值化二维矩阵
+
+    Args:
+        input_mat (np.ndarray): 输入矩阵
+        threshold (int): 阈值
+
+    Returns:
+        np.ndarray: 输出矩阵
+    """    
+    threshold = threshold - 1
     mat = np.ones(input_mat.shape)
-    check_size = stroke_size + 1.0
+    check_size = threshold + 1.0
     mat[input_mat > check_size] = 0
-    border = (input_mat > stroke_size) & (input_mat <= check_size)
-    mat[border] = 1.0 - (input_mat[border] - stroke_size)
+    border = (input_mat > threshold) & (input_mat <= check_size)
+    mat[border] = 1.0 - (input_mat[border] - threshold)
     return mat
 
-def cv2pil(cv_img):
+def cv2pil(cv_img: np.ndarray) -> Image:
+    """cv2图片转化为PIL图片
+
+    Args:
+        cv_img (np.ndarray): 输入图片
+
+    Returns:
+        Image: 输出图片
+    """    
     pil_img = Image.fromarray(cv_img.astype("uint8"))
     return pil_img
 
-def resize(img, size=0):
+def resize(img: Image, size: int) -> Image:
+    """缩放图片为指定大小的方形
+
+    Args:
+        img (Image): 输入图片
+        size (int): 大小
+
+    Returns:
+        Image: 输出图片
+    """    
     width, height = img.size
-    if not size:
-        size =img.size
     resize_img = Image.new('RGBA', (size, size), (255, 255, 255, 0))
     scale = min(size / width, size / height)
     offset_x = (size - width * scale) / 2
@@ -101,7 +149,7 @@ if __name__ == "__main__":
         img = Image.open(src)
         img = img.convert('RGBA')
         resized_img = resize(img, size=int(img_size))
-        stroked_img = stroke(resized_img, threshold=0, stroke_size=int(stroke_size), colors=((255,255,255),), padding=0)
+        stroked_img = stroke(resized_img, threshold=0, stroke_size=int(stroke_size), colors=(255,255,255), padding=0)
         stroked_img.save(os.path.join(output_path, image_name_output))
         print(f"图片{image_name_output}已处理完成")
     print(f"已保存全部图片至文件夹“{output_path}”")
